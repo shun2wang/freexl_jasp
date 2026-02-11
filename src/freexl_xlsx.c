@@ -618,6 +618,12 @@ sheet_start_tag (void *data, const char *el, const char **attr)
 				type = XLSX_STR_INDEX;
 			    if (strcmp (t, "n") == 0)
 				type = XLSX_INTEGER;
+				/* handle error code as strings */
+				if (strcmp (t, "e") == 0)
+				type = XLSX_STRING; 
+				/* handle DATE as integer numbers */
+				if (strcmp (t, "d") == 0)
+				type = XLSX_STRING; 
 				/* 
 				 * sandro 2023-09-15
 				 * 
@@ -662,6 +668,22 @@ set_xlsx_cell_value (xlsx_worksheet * worksheet, const char *val)
     cell = row->last;
     if (cell == NULL)
 	return;
+
+	/* For JASP: If a cell is marked as a date/time format, it will be force to a string. */
+    if (cell->is_datetime != XLSX_DATE_NONE)
+      {
+          /* Force to string */
+          cell->type = XLSX_STRING;
+          int len = strlen(val);
+          cell->text = malloc(len + 1);
+          if (cell->text != NULL)
+            {
+                strcpy(cell->text, val);
+                cell->assigned = 1;
+            }
+          return;
+      }
+	/* End For JASP */
 
     if (cell->type == XLSX_NULL && val != NULL)
       {
