@@ -512,12 +512,14 @@ xlsx_is_datetime (xlsx_workbook * workbook, int style)
 {
 /* checking for a DATETIME cell value */
     int is_datetime = 0;
+	/* JASP: disable datatime detection for now
     if (style >= 0 && style < workbook->n_styles)
       {
 	  xlsx_style *stl = workbook->styles + style;
 	  if (stl->formatRef != NULL)
 	      is_datetime = stl->formatRef->is_datetime;
       }
+	*/
     return is_datetime;
 }
 
@@ -644,7 +646,7 @@ sheet_start_tag (void *data, const char *el, const char **attr)
 	  else
 	      worksheet->error = 1;
       }
-    if (strcmp (el, "v") == 0)
+    if (strcmp (el, "v") == 0 || strcmp (el, "t") == 0)
       {
 	  if (worksheet->ColOk == 1)
 	      worksheet->CellValueOk = 1;
@@ -668,22 +670,6 @@ set_xlsx_cell_value (xlsx_worksheet * worksheet, const char *val)
     cell = row->last;
     if (cell == NULL)
 	return;
-
-	/* For JASP: If a cell is marked as a date/time format, it will be force to a string. */
-    if (cell->is_datetime != XLSX_DATE_NONE)
-      {
-          /* Force to string */
-          cell->type = XLSX_STRING;
-          int len = strlen(val);
-          cell->text = malloc(len + 1);
-          if (cell->text != NULL)
-            {
-                strcpy(cell->text, val);
-                cell->assigned = 1;
-            }
-          return;
-      }
-	/* End For JASP */
 
     if (cell->type == XLSX_NULL && val != NULL)
       {
@@ -751,7 +737,7 @@ sheet_end_tag (void *data, const char *el)
 	  else
 	      worksheet->error = 1;
       }
-    if (strcmp (el, "v") == 0)
+    if (strcmp (el, "v") == 0 || strcmp (el, "t") == 0)
       {
 	  if (worksheet->CellValueOk == 1)
 	    {
@@ -834,8 +820,26 @@ do_fetch_worksheet (unzFile uf, xlsx_worksheet * worksheet)
 	   * we'll read from the Target indirectly referenced
 	   * through _rels/workbook.xml.rels 
 	   */
-	  zip_entry = malloc (strlen (worksheet->target) + 5);
-	  sprintf (zip_entry, "xl/%s", worksheet->target);
+
+		/* 2026-2-25 shun wang from JASP */
+	    const char *raw_target = worksheet->target;
+
+        // if path start with '/' then skip to handle /xl/... case)
+        if (raw_target[0] == '/')
+		{
+            raw_target++;
+		}
+        // check if target has including "xl/"
+        if (strncmp(raw_target, "xl/", 3) == 0) 
+        {
+            zip_entry = malloc (strlen (raw_target) + 1);
+            strcpy (zip_entry, raw_target);
+        }
+        else 
+        {
+            zip_entry = malloc (strlen (raw_target) + 4);
+            sprintf (zip_entry, "xl/%s", raw_target);
+        }
       }
     else
       {
@@ -1158,8 +1162,12 @@ shared_strings_start_tag (void *data, const char *el, const char **attr)
 	    }
 	  workbook->SharedStringsOk = 1;
       }
-    *(workbook->CharData) = '\0';
-    workbook->CharDataLen = 0;
+
+      if (strcmp (el, "si") == 0) 
+      {
+          *(workbook->CharData) = '\0';
+          workbook->CharDataLen = 0;
+      }
 }
 
 static void
