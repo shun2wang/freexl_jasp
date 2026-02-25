@@ -512,12 +512,14 @@ xlsx_is_datetime (xlsx_workbook * workbook, int style)
 {
 /* checking for a DATETIME cell value */
     int is_datetime = 0;
+	/* JASP: disable datatime detection for now
     if (style >= 0 && style < workbook->n_styles)
       {
 	  xlsx_style *stl = workbook->styles + style;
 	  if (stl->formatRef != NULL)
 	      is_datetime = stl->formatRef->is_datetime;
       }
+	*/
     return is_datetime;
 }
 
@@ -1158,8 +1160,12 @@ shared_strings_start_tag (void *data, const char *el, const char **attr)
 	    }
 	  workbook->SharedStringsOk = 1;
       }
-    *(workbook->CharData) = '\0';
-    workbook->CharDataLen = 0;
+
+      if (strcmp (el, "si") == 0) 
+      {
+          *(workbook->CharData) = '\0';
+          workbook->CharDataLen = 0;
+      }
 }
 
 static void
