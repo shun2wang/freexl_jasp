@@ -5326,6 +5326,13 @@ get_cell_value_xlsx (xlsx_workbook * workbook, unsigned int row,
 				  val->value.text_value =
 				      *(workbook->strings + p_col->str_index);
 			      }
+			    else if (p_col->type == XLSX_STRING)
+			      {
+				  /* an ISO-8601 Date (t="d") or a text value
+				   * already stored as a string: returned as is */
+				  val->type = FREEXL_CELL_TEXT;
+				  val->value.text_value = p_col->text;
+			      }
 			    else
 			      {
 				  /* special case: DATE, TIME, DATETIME */
