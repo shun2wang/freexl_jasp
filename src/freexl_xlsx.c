@@ -512,14 +512,12 @@ xlsx_is_datetime (xlsx_workbook * workbook, int style)
 {
 /* checking for a DATETIME cell value */
     int is_datetime = 0;
-	/* JASP: disable datatime detection for now
     if (style >= 0 && style < workbook->n_styles)
       {
 	  xlsx_style *stl = workbook->styles + style;
 	  if (stl->formatRef != NULL)
 	      is_datetime = stl->formatRef->is_datetime;
       }
-	*/
     return is_datetime;
 }
 
@@ -1301,13 +1299,106 @@ parse_xlsx_format (const char *code)
     int is_time = 0;
     int i;
     int len = strlen (code);
+    int in_brackets = 0;
+    int am_pm = 0;
     for (i = 0; i < len; i++)
       {
-	  if (code[i] == 'd' || code[i] == 'm' || code[i] == 'y')
+	  if (code[i] == '[')
+	    {
+		/* bracketed sections: colors, conditions, locales e.g. [Red] [>=10] [$-409] */
+		in_brackets = 1;
+		continue;
+	    }
+	  if (code[i] == ']')
+	    {
+		in_brackets = 0;
+		continue;
+	    }
+	  if (in_brackets)
+	      continue;
+	  if (code[i] == '"')
+	    {
+		/* quoted literal text: skip until the closing quote */
+		i++;
+		while (i < len && code[i] != '"')
+		    i++;
+		continue;
+	    }
+	  if (code[i] == '\\')
+	    {
+		/* escaped literal character */
+		i++;
+		continue;
+	    }
+	  /* AM/PM indicator: forces a time interpretation */
+	  if ((code[i] == 'A' || code[i] == 'a')
+	      && i + 4 < len
+	      && (code[i + 1] == 'M' || code[i + 1] == 'm')
+	      && (code[i + 2] == '/' || code[i + 3] == '/'))
+	    {
+		am_pm = 1;
+		is_time = 1;
+		/* skip the AM/PM token itself */
+		if (code[i + 2] == '/')
+		    i += 4;
+		else
+		    i += 5;
+		continue;
+	    }
+	  if (code[i] == 'd' || code[i] == 'y')
 	      is_date = 1;
 	  if (code[i] == 'h' || code[i] == 's')
 	      is_time = 1;
+	  if (code[i] == 'm')
+	    {
+		/*
+		 * 'm' means minutes when the nearest preceding format-code
+		 * letter is 'h' (or when an 'h' precedes it ignoring
+		 * separators), or when a 's' follows it (ignoring
+		 * separators); otherwise it means month
+		 */
+		int j;
+		int minutes = 0;
+		for (j = i - 1; j >= 0; j--)
+		  {
+		      if (code[j] == 'h' || code[j] == 'H')
+			{
+			    minutes = 1;
+			    break;
+			}
+		      if (code[j] == 'm' || code[j] == 'M')
+			  /* same minute/month token: keep scanning backwards */
+			  continue;
+		      if (code[j] == 'd' || code[j] == 'D' || code[j] == 'y'
+			  || code[j] == 'Y' || code[j] == 's' || code[j] == 'S')
+			  break;
+		  }
+		if (!minutes)
+		  {
+		      for (j = i + 1; j < len; j++)
+			{
+			    if (code[j] == 's' || code[j] == 'S')
+			      {
+				  minutes = 1;
+				  break;
+			      }
+			    if (code[j] == 'm' || code[j] == 'M')
+				  /* same minute/month token: keep scanning forwards */
+			      continue;
+			    if (code[j] == 'd' || code[j] == 'D'
+				|| code[j] == 'y' || code[j] == 'Y'
+				|| code[j] == 'h' || code[j] == 'H')
+				break;
+			}
+		  }
+		if (minutes)
+		    is_time = 1;
+		else
+		    is_date = 1;
+	    }
       }
+    if (am_pm)
+	is_time = 1;
     if (is_date && is_time)
 	return XLSX_DATE_AND_TIME;
     if (is_date)
@@ -1316,6 +1407,11 @@ parse_xlsx_format (const char *code)
 	return XLSX_TIME_SIMPLE;
     return XLSX_DATE_NONE;
 }
+
+/* built-in XLSX number formats (used when a style references a built-in
+ * numFmtId that isn't explicitly declared within <numFmts>) */
+static xlsx_format builtin_datetime_format = { 0, XLSX_DATE_AND_TIME };
+static xlsx_format builtin_time_format = { 0, XLSX_TIME_SIMPLE };
 
 static xlsx_format *
 find_xlsx_format (xlsx_workbook * workbook, int id)
@@ -1328,6 +1424,20 @@ find_xlsx_format (xlsx_workbook * workbook, int id)
 	  if (fmt->fmtId == id)
 	      return fmt;
       }
+/* built-in number formats (identifiers below 164 are reserved by Excel) */
+    switch (id)
+      {
+      case 14:			/* mm-dd-yy */
+      case 15:			/* d-mmm-yy */
+      case 16:			/* d-mmm */
+      case 17:			/* mmm-yy */
+      case 22:			/* m/d/yy h:mm */
+	  return &builtin_datetime_format;
+      case 45:			/* mm:ss */
+      case 46:			/* [h]:mm:ss */
+      case 47:			/* mmss.0 */
+	  return &builtin_time_format;
+      };
     return NULL;
 }
 
