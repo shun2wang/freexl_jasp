@@ -1456,8 +1456,9 @@ parse_xlsx_format (const char *code, int *msec_digits)
 
 /* built-in XLSX number formats (used when a style references a built-in
  * numFmtId that isn't explicitly declared within <numFmts>) */
-static xlsx_format builtin_datetime_format = { 0, XLSX_DATE_AND_TIME, 0 };
+static xlsx_format builtin_date_format = { 0, XLSX_DATE_SIMPLE, 0 };
 static xlsx_format builtin_time_format = { 0, XLSX_TIME_SIMPLE, 0 };
+static xlsx_format builtin_datetime_format = { 0, XLSX_DATE_AND_TIME, 0 };
 
 static xlsx_format *
 find_xlsx_format (xlsx_workbook * workbook, int id)
@@ -1473,16 +1474,41 @@ find_xlsx_format (xlsx_workbook * workbook, int id)
 /* built-in number formats (identifiers below 164 are reserved by Excel) */
     switch (id)
       {
-      case 14:			/* mm-dd-yy */
-      case 15:			/* d-mmm-yy */
-      case 16:			/* d-mmm */
-      case 17:			/* mmm-yy */
-      case 22:			/* m/d/yy h:mm */
+	      case 14:			/* mm-dd-yy */
+	      case 15:			/* d-mmm-yy */
+	      case 16:			/* d-mmm */
+	      case 17:			/* mmm-yy */
+	  return &builtin_date_format;
+      	  case 22:			/* m/d/yy h:mm */
 	  return &builtin_datetime_format;
-      case 45:			/* mm:ss */
-      case 46:			/* [h]:mm:ss */
-      case 47:			/* mmss.0 */
+	      case 18:			/* h:mm AM/PM */
+	      case 19:			/* h:mm:ss AM/PM */
+	      case 20:			/* h:mm */
+	      case 21:			/* h:mm:ss */
+	      case 32:			/* h:mm:ss (East Asian locale) */
+	      case 33:			/* h:mm:ss (East Asian locale) */
+		  case 45:			/* mm:ss */
+	      case 46:			/* [h]:mm:ss */
+	      case 47:			/* mmss.0  (with msec. inside) */
 	  return &builtin_time_format;
+	      case 27:			/* m/d/yy (East Asian locale) */
+	      case 28:			/* m/d/yy (East Asian locale) */
+	      case 29:			/* m/d/yy (East Asian locale) */
+	      case 30:			/* m/d/yy (East Asian locale) */
+	      case 31:			/* m/d/yy (East Asian locale) */
+	      case 34:			/* yyyy-mm-dd (East Asian locale) */
+	      case 35:			/* m/d/yy (East Asian locale) */
+	      case 36:			/* m/d/yy (East Asian locale) */
+	      case 50:			/* mm:ss (CJK locale) */
+	      case 51:			/* mm:ss (CJK locale) */
+	      case 52:			/* yyyy-mm-dd (CJK locale) */
+	      case 53:			/* yyyy-mm-dd (CJK locale) */
+	      case 54:			/* yyyy-mm-dd (CJK locale) */
+	      case 55:			/* yyyy-mm-dd (CJK locale) */
+	      case 56:			/* yyyy-mm-dd (CJK locale) */
+	      case 57:			/* yyyy-mm-dd (CJK locale) */
+	      case 58:			/* yyyy-mm-dd (CJK locale) */
+	  return &builtin_date_format;
       };
     return NULL;
 }
