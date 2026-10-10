@@ -321,6 +321,7 @@ typedef struct xlsx_cell_struct
     int col_no;
     int type;
     int is_datetime;
+    int msec_digits;		/* sub-second digits for TIME/DATETIME formats */
     int assigned;
     int int_value;
     double dbl_value;
@@ -367,6 +368,7 @@ typedef struct xlsx_format_struct
 /* a struct representing a XLSX format */
     int fmtId;
     int is_datetime;
+    int msec_digits;		/* sub-second digits (e.g. hh:mm:ss.000 => 3) */
 } xlsx_format;
 
 typedef struct xlsx_style_struct
@@ -380,7 +382,7 @@ typedef struct xml_datetime_struct
 {
 /* a struct intended to store a block of DataTime strings */
 #define MAX_DATETIME_STR	128
-#define STR_DATETIME_LEN	20
+#define STR_DATETIME_LEN	28
     char datetime[MAX_DATETIME_STR][STR_DATETIME_LEN];
     int next_str;
     struct xml_datetime_struct *next;
