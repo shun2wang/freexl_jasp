@@ -175,7 +175,6 @@ alloc_workbook ()
     wb->StylesOk = 0;
     wb->FormatsOk = 0;
     wb->CellStylesOk = 0;
-    wb->date1904 = 0;
     return wb;
 }
 
